@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<outbound-message-delivery messageId="FebPromo" isError="false">
+  <recipient msisdn="64211111111" isError="false"/>
+  <recipient msisdn="64211111112" isError="false"/>
+  <recipient msisdn="64222222221" isError="true" errorCode="403" errorMessage="Cannot deliver to 64222222221 (Number in Blocked List)"/>
+  <recipient msisdn="salestem" isError="true" errorCode="403" errorMessage="Cannot deliver to salestem (Contact not in Address Book)"/>
+</outbound-message-delivery>

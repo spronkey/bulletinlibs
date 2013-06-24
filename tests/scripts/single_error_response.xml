@@ -1,0 +1,3 @@
+<?xml version="1.0" ?>
+<outbound-message-delivery messageId="FebPromo" isError="true" errorCode="401" errorMessage="Unauthorised">
+</outbound-message-delivery>
