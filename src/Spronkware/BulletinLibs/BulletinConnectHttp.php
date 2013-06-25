@@ -4,19 +4,19 @@ namespace Spronkware\BulletinLibs;
 class BulletinConnectHttp
 {
 	const ENDPOINT_SEND = 'https://service.bulletinconnect.net/api/1/sms/out';
-	const ENDPOINT_REPLY = 'https://service.bulletinconnect.net/api/1/sms/in';
+	const ENDPOINT_INBOUND = 'https://service.bulletinconnect.net/api/1/sms/in';
 	const ENDPOINT_STATUS = 'https://service.bulletinconnect.net/api/1/sms/status';
+	const ENDPOINT_QUEUE = 'https://service.bulletinconnect.net/api/1/sms/queue';
 	
 	protected $userid;
 	protected $password;
 	
 	protected $endpoint_send;
-	protected $endpoint_reply;
+	protected $endpoint_inbound;
 	protected $endpoint_status;
+	protected $endpoint_queue;
 	
 	protected $verify_certs;
-	
-	protected $last_code = null;
 	
 	/**
 	 * Construct the API endpoint object
@@ -29,8 +29,9 @@ class BulletinConnectHttp
 		$this->userid = $userid;
 		$this->password = $password;
 		$this->endpoint_send = static::ENDPOINT_SEND;
-		$this->endpoint_reply = static::ENDPOINT_REPLY;
+		$this->endpoint_inbound = static::ENDPOINT_INBOUND;
 		$this->endpoint_status = static::ENDPOINT_STATUS;
+		$this->endpoint_queue = static::ENDPOINT_QUEUE;
 		$this->verify_certs = false;
 	}
 
@@ -41,10 +42,30 @@ class BulletinConnectHttp
 	 */
 	protected function _addCredentialsToPostdata(array $postdata)
 	{
-		$postdata['userId'] = $this->userId;
+		$postdata['userId'] = $this->userid;
 		$postdata['password'] = $this->password;
 		
 		return $postdata;
+	}
+	
+	protected function _addCredentialsToURL($url)
+	{
+		if(strpos($url, '?') !== false) {
+			$url .= '&';
+		} else {
+			$url .= '?';
+		}
+		$url .= 'userId='.urlencode($this->userid).'&password='.urlencode($this->password);
+		return $url;
+	}
+	
+	/**
+	 * Returns whether or not the endpoint specified is an HTTPS endpoint
+	 * @param boolean $endpoint True if endpoint should use SSL/TLS
+	 */
+	protected function isSSL($endpoint)
+	{
+		return (strpos(strtolower($endpoint), 'https') === 0);
 	}
 	
 	/**
@@ -54,57 +75,102 @@ class BulletinConnectHttp
 	 */
 	public function send(Message $message)
 	{
-		$postdata = $this->_addCredentialsToPostdata($message);
+		// render message to postdata array and add user credentials
+		$postdata = \Spronkware\BulletinLibs\Protocol\MessageProtocol::renderToProperties($message);
+		$postdata = $this->_addCredentialsToPostdata($postdata);
 		
-		// perform curl request
-		$ch = curl_init();
-		
-		$options = array(
-				CURLOPT_URL				=>	$this->getURL(),
-				CURLOPT_RETURNTRANSFER	=>	1,
-				CURLOPT_CONNECTTIMEOUT	=>	10,
-				CURLOPT_TIMEOUT			=>	10,
-				CURLOPT_POST			=>	1,
-				CURLOPT_POSTFIELDS		=>	$postdata,
+		// configure http request
+		$request = \Httpful\Request::post(
+			$this->sendEndpoint(),
+			$postdata,
+			\Httpful\Mime::FORM
 		);
-		
-		// If we are using an HTTPS url, and we are set to verify certificates,
-		// enable verify host and peer settings
-		if(strpos(strtolower($this->auth_url), 'https') === 0 && $this->verifyCerts()) {
-			$options[CURLOPT_SSL_VERIFYHOST] = true;
-			$options[CURLOPT_SSL_VERIFYPEER] = true;
+		if($this->isSSL($this->sendEndpoint()) && $this->verifyCerts()) {
+			$request->strictSSL(true);
 		}
 		
-		// Setup CURL and exec request
-		curl_setopt_array($ch, $options);
-		$response = curl_exec($ch);
+		// send request
+		$response = $request->autoParse(false)->send();
+		$sr = Response\SendResponse::fromHttp($response->code, $response->headers, $response->body);
+		if($sr->isSuccess()) {
+			return $sr;
+		} else {
+			throw new \Spronkware\BulletinLibs\Exception\BulletinLibsException($sr->getError());
+		}
+	}
+	
+	/**
+	 * Polls bulletin.net for the account's queue depth information
+	 * @return Spronkware\BulletinLibs\Response\QueueDepthResponse
+	 */
+	public function getQueueDepthData()
+	{
+		$uri = $this->_addCredentialsToURL($this->queueEndpoint());
+		$request = \Httpful\Request::get($uri);
 		
-		// Test response
-		if($response !== false) {
-			$code = curl_getinfo($c, CURLINFO_HTTP_CODE);
-			$this->last_code = $code;
-			if($code == '200' || $code == '204') {
-				return true;
-			}
+		if($this->isSSL($this->queueEndpoint()) && $this->verifyCerts()) {
+			$request->strictSSL(true);
 		}
 		
-		return false;
+		$response = $request->autoParse(false)->send();
+		$qdr = Response\QueueDepthResponse::fromHttp($response->code, $response->headers, $response->body);
+		if($qdr->isSuccess()) {
+			return $qdr;
+		} else {
+			throw new \Spronkware\BulletinLibs\Exception\BulletinLibsException($qdr->getError());
+		}
+	}
+	
+	/**
+	 * Polls bulletin.net for queue depth and returns the number of queued replies (or inbound messages)
+	 * @return int
+	 */
+	public function getQueuedInboundCount()
+	{
+		$qd = $this->getQueueDepthData();
+		return $qd->getInboundCount();
+	}
+	
+	/**
+	 * Polls bulletin.net for the queue depth and returns the number of queued status reports
+	 * @return int
+	 */
+	public function getQueuedStatusCount()
+	{
+		$qd = $this->getQueueDepthData();
+		return $qd->getStatusCount();
 	}
 	
 	/**
 	 * Polls the server for replies
+	 * @return \Spronkware\BulletinLibs\Response\InboundResponse
 	 */
-	public function pollForReplies()
+	public function pollForInbound()
 	{
-		$ch = curl_init();
+		$url = $this->_addCredentialsToURL($this->inboundEndpoint());
+		$request = \Httpful\Request::get($url);
+		if($this->isSSL($this->queueEndpoint()) && $this->verifyCerts()) {
+			$request->strictSSL(true);
+		}
+		
+		$response = $request->autoParse(false)->send();
+		return Response\InboundResponse::fromHttp($response->code, $response->headers, $response->body);
 	}
 	
 	/**
 	 * Polls the server for status updates
+	 * @return \Spronkware\BulletinLibs\Response\StatusResponse
 	 */
 	public function pollForStatusUpdates()
 	{
+		$url = $this->_addCredentialsToURL($this->statusEndpoint());
+		$request = \Httpful\Request::get($url);
+		if($this->isSSL($this->queueEndpoint()) && $this->verifyCerts()) {
+			$request->strictSSL(true);
+		}
 		
+		$response = $request->autoParse(false)->send();
+		return Response\StatusResponse::fromHttp($response->code, $response->headers, $response->body);
 	}
 	
 	public function sendEndpoint() {
@@ -118,15 +184,15 @@ class BulletinConnectHttp
 		$this->endpoint_send = $url;
 	}
 	
-	public function replyEndpoint() {
-		return $this->endpoint_reply;
+	public function inboundEndpoint() {
+		return $this->endpoint_inbound;
 	}
 	
 	/**
-	 * Sets the REPLY endpoint URL to something other than default
+	 * Sets the INBOUND endpoint URL to something other than default
 	 */
-	public function setReplyEndpoint($url) {
-		$this->endpoint_reply = $url;
+	public function setInboundEndpoint($url) {
+		$this->endpoint_inbound = $url;
 	}
 	
 	public function statusEndpoint() {
@@ -136,8 +202,19 @@ class BulletinConnectHttp
 	/**
 	 * Sets the STATUS endpoint URL to something other than default
 	 */
-	public function setstatusEndpoint($url) {
+	public function setStatusEndpoint($url) {
 		$this->endpoint_status = $url;
+	}
+	
+	public function queueEndpoint() {
+		return $this->endpoint_queue;
+	}
+	
+	/**
+	 * Sets the QUEUE endpoint URL to something other than default
+	 */
+	public function setQueueEndpoint($url) {
+		$this->endpoint_queue = $url;
 	}
 	
 	public function verifyCerts()

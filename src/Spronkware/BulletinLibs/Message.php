@@ -1,6 +1,10 @@
 <?php
 namespace Spronkware\BulletinLibs;
 
+/**
+ * Represents a text message
+ * @author Keith Humm <keith.humm@school-links.co.nz>
+ */
 class Message
 {
 	protected $to;

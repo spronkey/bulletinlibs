@@ -1,0 +1,72 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file"
+    ],
+    "hash": "e1814a017bdd9d4f0178909b826b8c9d",
+    "packages": [
+        {
+            "name": "nategood/httpful",
+            "version": "0.2.3",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/nategood/httpful.git",
+                "reference": "v0.2.3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/nategood/httpful/zipball/v0.2.3",
+                "reference": "v0.2.3",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "php": ">=5.3"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-0": {
+                    "Httpful": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nate Good",
+                    "email": "me@nategood.com",
+                    "homepage": "http://nategood.com"
+                }
+            ],
+            "description": "A Readable, Chainable, REST friendly, PHP HTTP Client",
+            "homepage": "http://github.com/nategood/httpful",
+            "keywords": [
+                "api",
+                "curl",
+                "http",
+                "requests",
+                "rest",
+                "restful"
+            ],
+            "time": "2013-03-05 04:08:29"
+        }
+    ],
+    "packages-dev": [
+
+    ],
+    "aliases": [
+
+    ],
+    "minimum-stability": "stable",
+    "stability-flags": [
+
+    ],
+    "platform": {
+        "php": ">=5.3.0"
+    },
+    "platform-dev": [
+
+    ]
+}
