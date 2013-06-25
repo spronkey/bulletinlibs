@@ -12,6 +12,7 @@ class SendMessageTest extends PHPUnit_Framework_TestCase
 	function setUp()
 	{
 		$this->gw = new btn\BulletinConnectHttp(BULLETIN_USERID, BULLETIN_PASSWORD);
+		$this->gw->setSendEndpoint('https://service.bulletinconnect.net/api/1/sms/test');
 	}
 	
 	function test_sendWithBadNumber()

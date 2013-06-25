@@ -9,4 +9,13 @@ namespace Spronkware\BulletinLibs\Response;
  */
 class InboundResponse extends StatusResponse
 {
+	public function getStatusCode()
+	{
+		return 'RPL';
+	}
+	
+	public function getMessageBody()
+	{
+		return $this->getParam('body');
+	}
 }

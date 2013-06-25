@@ -47,4 +47,22 @@ class StatusResponse extends BulletinResponse
 		}
 		return null;
 	}
+	
+	/**
+	 * Shortcut methods
+	 */
+	public function getInReplyToId()
+	{
+		return $this->getParam('inReplyToId');
+	}
+	
+	public function getStatusCode()
+	{
+		return $this->getParam('statusCode');
+	}
+	
+	public function getMessageBody()
+	{
+		return $this->getParam('error');
+	}
 }
