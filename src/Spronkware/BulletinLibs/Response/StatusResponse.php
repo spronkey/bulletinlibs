@@ -4,6 +4,14 @@ namespace Spronkware\BulletinLibs\Response;
 /**
  * Status and Reply response parsers
  * 
+ * Bulletin.net inbound statuses have the following fields:
+ * - messageId		Unique ID for message
+ * - from			Source MSISDN (sender number)
+ * - to				Destination MSISDN (sent to number)
+ * - statusCode		Status code - one of NUR, SNT, ERR, NRCV/NRC, RCV, EXP, INF
+ * - inReplyToID	Correlation ID if message is a reply
+ * - error			Descriptive text
+ * 
  * @author Keith Humm <keith.humm@school-links.co.nz>
  * @copyright 2013 Solvam Corporation Limited
  */
@@ -64,5 +72,15 @@ class StatusResponse extends BulletinResponse
 	public function getMessageBody()
 	{
 		return $this->getParam('error');
+	}
+	
+	public function getFrom()
+	{
+		return $this->getParam('from');
+	}
+	
+	public function getTo()
+	{
+		return $this->getParam('to');
 	}
 }
